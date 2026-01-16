@@ -4,10 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>막대기 중심 잡기 - 스테이지 모드</title>
-    <!-- Tailwind CSS (CDN) -->
+    <!-- Tailwind CSS (CDN) - 링크 수정됨 -->
     <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <!-- 분리된 CSS 파일 연결 -->
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 폰트 불러오기 - 링크 수정됨 */
+        @import url('[https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap](https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap)');
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            overflow: hidden;
+            touch-action: none; /* 스크롤 및 줌 방지 */
+            user-select: none; /* 텍스트 선택 방지 */
+            -webkit-user-select: none;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .shake-screen {
+            animation: shake 0.5s;
+            animation-iteration-count: 1;
+        }
+
+        /* 모바일 버튼 터치 영역 스타일 */
+        .control-btn {
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
 </head>
 <body class="bg-slate-900 text-white h-screen w-screen flex flex-col items-center justify-center relative select-none">
 
@@ -26,7 +61,7 @@
     <!-- 게임 캔버스 -->
     <canvas id="gameCanvas" class="w-full h-full block"></canvas>
 
-    <!-- 오버레이 (시작, 성공, 실패 통합) -->
+    <!-- 오버레이 -->
     <div id="overlay" class="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-20 transition-opacity duration-300">
         <div class="text-center p-8 bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-[90%]">
             <h2 id="overlayTitle" class="text-3xl font-bold mb-2 text-white">준비되셨나요?</h2>
@@ -43,11 +78,13 @@
     <!-- 모바일 컨트롤 (Pointer Events 적용) -->
     <div class="absolute bottom-10 w-full flex justify-between px-8 md:hidden z-30 pointer-events-none">
         <div id="btnLeft" class="control-btn w-20 h-20 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-auto active:bg-white/30 transition cursor-pointer shadow-lg border border-white/10">
+            <!-- SVG xmlns 링크 수정됨 -->
             <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" class="h-8 w-8 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
         </div>
         <div id="btnRight" class="control-btn w-20 h-20 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-auto active:bg-white/30 transition cursor-pointer shadow-lg border border-white/10">
+            <!-- SVG xmlns 링크 수정됨 -->
             <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" class="h-8 w-8 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
