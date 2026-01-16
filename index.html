@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>막대기 중심 잡기 - 스테이지 모드</title>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <!-- 분리된 CSS 파일 연결 -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-900 text-white h-screen w-screen flex flex-col items-center justify-center relative select-none">
+
+    <!-- UI 레이어 -->
+    <div class="absolute top-0 left-0 w-full p-6 flex justify-between items-start z-10 pointer-events-none">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-200">중심 잡기</h1>
+            <p id="stageDisplay" class="text-xl text-indigo-400 font-bold mt-1">STAGE 1</p>
+        </div>
+        <div class="text-right">
+            <div class="text-sm text-slate-400">TIME LEFT</div>
+            <div id="timeDisplay" class="text-4xl font-mono font-bold text-yellow-400">10.00</div>
+        </div>
+    </div>
+
+    <!-- 게임 캔버스 -->
+    <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+
+    <!-- 오버레이 (시작, 성공, 실패 통합) -->
+    <div id="overlay" class="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-20 transition-opacity duration-300">
+        <div class="text-center p-8 bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-[90%]">
+            <h2 id="overlayTitle" class="text-3xl font-bold mb-2 text-white">준비되셨나요?</h2>
+            <p id="overlayDesc" class="text-slate-400 mb-8">10초 동안 막대기를<br>떨어뜨리지 않고 버티세요!</p>
+            
+            <div class="flex flex-col gap-3">
+                <button id="startBtn" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-lg shadow-lg transform transition active:scale-95">
+                    게임 시작
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모바일 컨트롤 (Pointer Events 적용) -->
+    <div class="absolute bottom-10 w-full flex justify-between px-8 md:hidden z-30 pointer-events-none">
+        <div id="btnLeft" class="control-btn w-20 h-20 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-auto active:bg-white/30 transition cursor-pointer shadow-lg border border-white/10">
+            <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" class="h-8 w-8 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+        </div>
+        <div id="btnRight" class="control-btn w-20 h-20 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-auto active:bg-white/30 transition cursor-pointer shadow-lg border border-white/10">
+            <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" class="h-8 w-8 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </div>
+    </div>
+
+    <!-- 분리된 JS 파일 연결 -->
+    <script src="script.js"></script>
+</body>
+</html>
