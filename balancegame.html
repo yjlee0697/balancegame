@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>막대기 중심 잡기 - 스테이지 모드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            overflow: hidden;
+            touch-action: none; /* 스크롤 및 줌 방지 */
+            user-select: none; /* 텍스트 선택 방지 */
+            -webkit-user-select: none;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .shake-screen {
+            animation: shake 0.5s;
+            animation-iteration-count: 1;
+        }
+
+        /* 모바일 버튼 터치 영역 스타일 */
+        .control-btn {
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white h-screen w-screen flex flex-col items-center justify-center relative select-none">
+
+    <!-- UI 레이어 -->
+    <div class="absolute top-0 left-0 w-full p-6 flex justify-between items-start z-10 pointer-events-none">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-200">중심 잡기</h1>
+            <!-- 스테이지 표시 추가 -->
+            <p id="stageDisplay" class="text-xl text-indigo-400 font-bold mt-1">STAGE 1</p>
+        </div>
+        <div class="text-right">
+            <div class="text-sm text-slate-400">TIME LEFT</div>
+            <!-- 남은 시간 표시 -->
+            <div id="timeDisplay" class="text-4xl font-mono font-bold text-yellow-400">10.00</div>
+        </div>
+    </div>
+
+    <!-- 게임 캔버스 -->
+    <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+
+    <!-- 오버레이 (시작, 성공, 실패 통합) -->
+    <div id="overlay" class="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-20 transition-opacity duration-300">
+        <div class="text-center p-8 bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-[90%]">
+            <h2 id="overlayTitle" class="text-3xl font-bold mb-2 text-white">준비되셨나요?</h2>
+            <p id="overlayDesc" class="text-slate-400 mb-8">10초 동안 막대기를<br>떨어뜨리지 않고 버티세요!</p>
+            
+            <div class="flex flex-col gap-3">
+                <button id="startBtn" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-lg shadow-lg transform transition active:scale-95">
+                    게임 시작
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모바일 컨트롤 (Pointer Events 적용) -->
+    <div class="absolute bottom-10 w-full flex justify-between px-8 md:hidden z-30 pointer-events-none">
+        <!-- pointer-events-auto로 버튼 클릭 활성화 -->
+        <div id="btnLeft" class="control-btn w-20 h-20 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-auto active:bg-white/30 transition cursor-pointer shadow-lg border border-white/10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+        </div>
+        <div id="btnRight" class="control-btn w-20 h-20 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm pointer-events-auto active:bg-white/30 transition cursor-pointer shadow-lg border border-white/10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        // DOM 요소
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const stageDisplay = document.getElementById('stageDisplay');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayDesc = document.getElementById('overlayDesc');
+        const startBtn = document.getElementById('startBtn');
+        const btnLeft = document.getElementById('btnLeft');
+        const btnRight = document.getElementById('btnRight');
+
+        // 게임 상태 상수
+        const STATE_MENU = 'MENU';
+        const STATE_PLAYING = 'PLAYING';
+        const STATE_GAMEOVER = 'GAMEOVER';
+        const STATE_CLEAR = 'CLEAR'; 
+
+        // 게임 상태 변수
+        let gameState = STATE_MENU;
+        let lastTime = 0;
+        let animationId;
+        
+        // 스테이지 관리 변수
+        let currentStage = 1;
+        let timeLeft = 10.00;
+        let currentGravity = 0.3; // 초기 중력
+
+        // 물리 상수
+        const BASE_GRAVITY = 0.3;     // 시작 중력
+        const GRAVITY_INCREMENT = 0.015; // 스테이지당 중력 증가량
+        const PUSH_FORCE = 2.5;       // 키보드 플레이어 힘
+        const TOUCH_PUSH_FORCE = 2.7; // [수정] 터치 플레이어 힘 (키보드 대비 8% 상향: 2.5 * 1.08)
+        const FRICTION = 0.93;        // 마찰
+        const MAX_ANGLE = 85;         // 게임오버 각도
+        const STAGE_DURATION = 10;    // 스테이지 제한 시간 (초)
+        
+        let stick = {
+            angle: 0,
+            velocity: 0,
+            length: 200,
+            width: 14,
+            color: '#FBBF24'
+        };
+
+        const input = { left: false, right: false };
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            stick.length = Math.min(window.innerHeight * 0.4, 300);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 버튼 핸들러
+        function handleBtnClick() {
+            startBtn.blur(); 
+
+            if (gameState === STATE_MENU || gameState === STATE_GAMEOVER) {
+                startGame(true); 
+            } else if (gameState === STATE_CLEAR) {
+                startGame(false);
+            }
+        }
+
+        // 게임 시작
+        function startGame(isReset) {
+            if (isReset) {
+                currentStage = 1;
+                currentGravity = BASE_GRAVITY;
+            } else {
+                currentStage++;
+                currentGravity += GRAVITY_INCREMENT;
+            }
+
+            gameState = STATE_PLAYING;
+            timeLeft = STAGE_DURATION;
+            
+            stageDisplay.innerText = `STAGE ${currentStage}`;
+            timeDisplay.innerText = timeLeft.toFixed(2);
+            timeDisplay.classList.remove('text-red-500');
+            timeDisplay.classList.add('text-yellow-400');
+            
+            stick.angle = (Math.random() * 4 - 2); 
+            stick.velocity = 0;
+            
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('shake-screen');
+            
+            lastTime = performance.now();
+            if (animationId) cancelAnimationFrame(animationId);
+            gameLoop(lastTime);
+        }
+
+        function gameOver() {
+            gameState = STATE_GAMEOVER;
+            overlayTitle.innerText = "게임 오버!";
+            overlayDesc.innerHTML = `STAGE ${currentStage}에서 실패했습니다.<br>다시 1단계부터 도전해보세요.`;
+            startBtn.innerText = "다시 시작";
+            
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('shake-screen');
+            if (navigator.vibrate) navigator.vibrate(200);
+        }
+
+        function stageClear() {
+            gameState = STATE_CLEAR;
+            overlayTitle.innerText = `STAGE ${currentStage} 클리어!`;
+            overlayDesc.innerHTML = `축하합니다! 균형 감각이 좋으시네요.<br>다음 단계로 넘어갈까요?<br><span class="text-xs text-gray-400">(중력이 조금 더 강해집니다)</span>`;
+            startBtn.innerText = "다음 스테이지 시작";
+
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function update(dt) {
+            if (gameState !== STATE_PLAYING) return;
+
+            timeLeft -= dt / 1000;
+            if (timeLeft <= 0) {
+                timeLeft = 0;
+                stageClear();
+                return;
+            }
+
+            timeDisplay.innerText = timeLeft.toFixed(2);
+            if (timeLeft <= 3.0) {
+                timeDisplay.classList.remove('text-yellow-400');
+                timeDisplay.classList.add('text-red-500');
+            } else {
+                timeDisplay.classList.add('text-yellow-400');
+                timeDisplay.classList.remove('text-red-500');
+            }
+
+            const radian = stick.angle * Math.PI / 180;
+            const gravityForce = Math.sin(radian) * currentGravity;
+            
+            stick.velocity += gravityForce;
+            stick.velocity *= FRICTION;
+            stick.angle += stick.velocity;
+
+            if (Math.abs(stick.angle) >= MAX_ANGLE) {
+                gameOver();
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height * 0.8; 
+
+            const dangerLevel = Math.min(Math.abs(stick.angle) / MAX_ANGLE, 1);
+            if (dangerLevel > 0.5) {
+                ctx.save();
+                ctx.globalAlpha = (dangerLevel - 0.5) * 0.4;
+                ctx.fillStyle = '#EF4444'; 
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(canvas.width, centerY);
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#94A3B8'; 
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(stick.angle * Math.PI / 180); 
+
+            ctx.fillStyle = stick.color;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 5;
+
+            ctx.beginPath();
+            ctx.roundRect(-stick.width / 2, -stick.length, stick.width, stick.length, 6);
+            ctx.fill();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+            ctx.arc(0, -stick.length + 10, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            if (input.left || input.right) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                const arrowSize = 30;
+                const offset = 60;
+                
+                if (input.left) {
+                    ctx.beginPath();
+                    ctx.moveTo(centerX - offset, centerY - 10);
+                    ctx.lineTo(centerX - offset - arrowSize, centerY);
+                    ctx.lineTo(centerX - offset, centerY + 10);
+                    ctx.fill();
+                }
+                if (input.right) {
+                    ctx.beginPath();
+                    ctx.moveTo(centerX + offset, centerY - 10);
+                    ctx.lineTo(centerX + offset + arrowSize, centerY);
+                    ctx.lineTo(centerX + offset, centerY + 10);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function gameLoop(timestamp) {
+            const dt = timestamp - lastTime;
+            lastTime = timestamp;
+
+            update(dt);
+            draw();
+
+            if (gameState === STATE_PLAYING) {
+                animationId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // 키보드 이벤트 리스너
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                return; 
+            }
+
+            if (gameState !== STATE_PLAYING) {
+                if (e.code === 'Enter') handleBtnClick();
+                return;
+            }
+
+            if (e.repeat) return;
+
+            if (e.code === 'ArrowLeft') {
+                stick.velocity -= PUSH_FORCE;
+                input.left = true;
+            }
+            if (e.code === 'ArrowRight') {
+                stick.velocity += PUSH_FORCE;
+                input.right = true;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft') input.left = false;
+            if (e.code === 'ArrowRight') input.right = false;
+        });
+
+        // [수정] 통합 입력 처리 (마우스 + 터치)
+        // touchstart/touchend 대신 pointerdown/pointerup 사용으로 호환성 확보
+        function handleInputStart(direction) {
+            if (gameState !== STATE_PLAYING) return;
+            
+            // [수정] 모바일 감도 이슈 해결: 이미 눌린 상태라면(멀티 터치 등) 힘을 중복 적용하지 않음
+            // 키보드와 동일하게 '한 번 누를 때 한 번만' 힘이 들어가도록 제한
+            if (direction === 'left' && input.left) return;
+            if (direction === 'right' && input.right) return;
+
+            if (direction === 'left') {
+                stick.velocity -= TOUCH_PUSH_FORCE; // [수정] 터치 전용 힘 적용
+                input.left = true;
+            }
+            if (direction === 'right') {
+                stick.velocity += TOUCH_PUSH_FORCE; // [수정] 터치 전용 힘 적용
+                input.right = true;
+            }
+            
+            const btn = direction === 'left' ? btnLeft : btnRight;
+            btn.classList.add('bg-white/30');
+        }
+
+        function handleInputEnd(direction) {
+            if (direction === 'left') input.left = false;
+            if (direction === 'right') input.right = false;
+            
+            const btn = direction === 'left' ? btnLeft : btnRight;
+            btn.classList.remove('bg-white/30');
+        }
+
+        // 버튼 이벤트 바인딩 헬퍼
+        function bindBtnEvents(btn, direction) {
+            // 포인터 누름 (터치 시작, 마우스 클릭)
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // 텍스트 선택 등 기본 동작 방지
+                handleInputStart(direction);
+                btn.setPointerCapture(e.pointerId); // 포인터 이탈 방지
+            });
+
+            // 포인터 뗌 (터치 끝, 마우스 뗌)
+            btn.addEventListener('pointerup', (e) => {
+                e.preventDefault();
+                handleInputEnd(direction);
+                btn.releasePointerCapture(e.pointerId);
+            });
+            
+            // 포인터가 버튼 밖으로 나감 (드래그하여 이탈 시 입력 해제)
+            btn.addEventListener('pointerleave', (e) => {
+                e.preventDefault();
+                handleInputEnd(direction);
+            });
+        }
+
+        bindBtnEvents(btnLeft, 'left');
+        bindBtnEvents(btnRight, 'right');
+
+        startBtn.addEventListener('click', handleBtnClick);
+
+        resize();
+        draw();
+    </script>
+</body>
+</html>
