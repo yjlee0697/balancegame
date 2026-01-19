@@ -29,7 +29,7 @@ let currentGravity = 0.3; // 초기 중력
 // 물리 상수
 const BASE_GRAVITY = 0.3;     // 시작 중력
 const GRAVITY_INCREMENT = 0.015; // 스테이지당 중력 증가량
-const PUSH_FORCE = 2.7;       // 키보드 플레이어 힘
+const PUSH_FORCE = 3.2;       // 키보드 플레이어 힘
 const TOUCH_PUSH_FORCE = 2.7; // 터치 플레이어 힘 (키보드 대비 8% 상향)
 const FRICTION = 0.93;        // 마찰
 const MAX_ANGLE = 85;         // 게임오버 각도
